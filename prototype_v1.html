@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>初中专项自适应学习平台 - 交互原型</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+        body { font-family: 'Inter', sans-serif; background: #0a0a0f; color: white; overflow: hidden; height: 100vh; }
+        
+        /* 星空背景动画 */
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%); }
+        
+        /* 知识节点样式 */
+        .node { position: absolute; width: 12px; height: 12px; background: #4fd1c5; border-radius: 50%; cursor: pointer; box-shadow: 0 0 15px #4fd1c5; transition: all 0.3s; }
+        .node:hover { transform: scale(1.5); box-shadow: 0 0 25px #4fd1c5; }
+        .node.mastered { background: #f6ad55; box-shadow: 0 0 15px #f6ad55; }
+        .node-label { position: absolute; transform: translate(-50%, 20px); white-space: nowrap; font-size: 12px; opacity: 0.8; }
+
+        /* 侧边面板 */
+        .panel { position: fixed; top: 20px; left: -400px; width: 350px; bottom: 20px; background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 100; padding: 24px; }
+        .panel.active { left: 20px; }
+
+        /* 沉浸式练习模式 */
+        #practice-view { position: fixed; inset: 0; background: #0a0a0f; display: none; z-index: 200; grid-template-columns: 1fr 350px; }
+        .math-card { background: white; color: #1a202c; border-radius: 24px; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); width: 90%; max-width: 800px; margin: auto; }
+        
+        /* 对话气泡 */
+        .chat-msg { margin-bottom: 16px; padding: 12px; border-radius: 12px; font-size: 14px; }
+        .chat-ai { background: rgba(79, 209, 197, 0.1); border-left: 4px solid #4fd1c5; }
+        .audio-wave { width: 100%; height: 30px; background: rgba(255,255,255,0.1); border-radius: 15px; margin-top: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .wave-bar { width: 3px; background: #4fd1c5; margin: 0 2px; animation: wave 1s infinite ease-in-out; }
+        @keyframes wave { 0%, 100% { height: 5px; } 50% { height: 20px; } }
+
+        /* 底部 Dock */
+        .dock { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.1); backdrop-filter: blur(20px); border-radius: 40px; padding: 10px 30px; display: flex; align-items: center; border: 1px solid rgba(255,255,255,0.2); }
+    </style>
+</head>
+<body>
+    <div class="stars"></div>
+
+    <!-- 知识宇宙视图 -->
+    <div id="map-view" class="relative w-full h-full">
+        <div class="absolute top-10 left-1/2 -translate-x-1/2 text-center">
+            <h1 class="text-3xl font-light tracking-widest text-teal-400 uppercase">初中数学 · 知识宇宙</h1>
+            <p class="text-gray-500 mt-2">点击星点开启探索</p>
+        </div>
+
+        <!-- 模拟节点 -->
+        <div class="node mastered" style="top: 40%; left: 30%;" onclick="showNode('勾股定理')">
+            <div class="node-label">勾股定理 (已精通)</div>
+        </div>
+        <div class="node" style="top: 50%; left: 50%;" onclick="showNode('平行四边形')">
+            <div class="node-label">平行四边形</div>
+        </div>
+        <div class="node" style="top: 30%; left: 60%;" onclick="showNode('二次函数')">
+            <div class="node-label">二次函数</div>
+        </div>
+
+        <canvas id="connections" class="absolute inset-0 pointer-events-none"></canvas>
+    </div>
+
+    <!-- 知识详情侧边栏 -->
+    <div id="node-panel" class="panel">
+        <h2 id="panel-title" class="text-2xl font-bold text-teal-400">勾股定理</h2>
+        <div class="mt-6 space-y-4">
+            <div>
+                <h3 class="text-xs uppercase text-gray-500 font-semibold">定义</h3>
+                <p class="text-gray-300 mt-1 leading-relaxed">如果直角三角形的两条直角边长分别为 $a$，$b$，斜边长为 $c$，那么 $a^2 + b^2 = c^2$。</p>
+            </div>
+            <div>
+                <h3 class="text-xs uppercase text-gray-500 font-semibold">意义</h3>
+                <p class="text-gray-300 mt-1 italic text-sm">它是几何学的基石，连接了代数与形状，是开启高维空间探索的钥匙。</p>
+            </div>
+            <div class="pt-10">
+                <button onclick="startPractice()" class="w-full bg-teal-500 hover:bg-teal-400 text-black font-bold py-3 rounded-xl transition-all shadow-lg shadow-teal-500/20">
+                    开启专项训练
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 沉浸式练习模式 -->
+    <div id="practice-view">
+        <div class="relative overflow-y-auto p-10 flex items-center justify-center">
+            <div class="math-card">
+                <div class="flex justify-between items-center mb-10 text-sm text-gray-400">
+                    <span>专项训练：平行四边形性质</span>
+                    <span class="bg-teal-100 text-teal-800 px-3 py-1 rounded-full font-bold">难度: C (中等)</span>
+                </div>
+                <div class="prose lg:prose-xl">
+                    <p class="text-lg mb-6">如图，在 $\square ABCD$ 中，对角线 $AC, BD$ 相交于点 $O$，点 $E$ 是 $BC$ 的中点。若 $\angle BAC = 90^\circ$，$BC = 10$，$AC = 8$，求线段 $OE$ 的长。</p>
+                    <div class="bg-gray-100 h-48 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400">
+                        [ 几何图形：平行四边形对角线示意图 ]
+                    </div>
+                </div>
+                <div class="mt-10 pt-6 border-t border-gray-200">
+                    <div class="flex gap-4 mb-4">
+                        <button onclick="showHint()" class="text-teal-600 text-sm font-semibold hover:underline">💡 获取思路提示</button>
+                        <button onclick="showFullSolution()" class="text-orange-600 text-sm font-semibold hover:underline">📖 查看完整详解</button>
+                    </div>
+                    <input type="text" placeholder="输入 LaTeX 答案..." class="w-full p-4 bg-gray-50 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                </div>
+
+                <!-- 隐藏的详解区域 -->
+                <div id="solution-area" class="hidden mt-8 p-6 bg-orange-50 rounded-2xl border border-orange-100 animate-fade-in">
+                    <h4 class="font-bold text-orange-800 mb-4 flex items-center">
+                        <span class="mr-2">📝</span> 标准分步解析
+                    </h4>
+                    <div class="space-y-4 text-gray-700 text-sm leading-relaxed">
+                        <div class="cursor-pointer hover:bg-orange-100 p-2 rounded transition-colors" onclick="askStep(1)">
+                            <strong>第一步：</strong> 判定中位线。在 $\triangle ABC$ 中，点 $O$ 为 $AC$ 中点，点 $E$ 为 $BC$ 中点。
+                        </div>
+                        <div class="cursor-pointer hover:bg-orange-100 p-2 rounded transition-colors" onclick="askStep(2)">
+                            <strong>第二步：</strong> 根据三角形中位线定理，得 $OE = \frac{1}{2} AB$。
+                        </div>
+                        <div class="cursor-pointer hover:bg-orange-100 p-2 rounded transition-colors" onclick="askStep(3)">
+                            <strong>第三步：</strong> 在 $Rt\triangle BAC$ 中，已知 $BC=10, AC=8$，由勾股定理得 $AB = \sqrt{10^2 - 8^2} = 6$。
+                        </div>
+                        <div class="cursor-pointer hover:bg-orange-100 p-2 rounded transition-colors" onclick="askStep(4)">
+                            <strong>第四步：</strong> 结论。故 $OE = \frac{1}{2} \times 6 = 3$。
+                        </div>
+                    </div>
+                    <p class="text-xs text-orange-400 mt-4 italic">提示：点击任意步骤即可与 AI 讨论</p>
+                </div>
+            </div>
+
+            <!-- 底部交互 Dock -->
+            <div class="dock">
+                <button class="p-2 hover:bg-white/10 rounded-full">📷 截图</button>
+                <div class="mx-4 h-8 w-[1px] bg-white/20"></div>
+                <button class="bg-red-500 w-12 h-12 rounded-full shadow-lg shadow-red-500/40 flex items-center justify-center text-xl">🎤</button>
+                <div class="mx-4 h-8 w-[1px] bg-white/20"></div>
+                <button class="p-2 hover:bg-white/10 rounded-full">∑ 公式</button>
+            </div>
+        </div>
+
+        <!-- AI 助教侧边栏 -->
+        <div class="bg-white/5 backdrop-blur-xl border-l border-white/10 p-6 flex flex-col h-full">
+            <h3 class="font-bold text-teal-400 mb-6 flex items-center">
+                <span class="mr-2">✨</span> AI 智能助教
+            </h3>
+            <div class="flex-1 overflow-y-auto space-y-4">
+                <div class="chat-msg chat-ai">
+                    你好！看到你正在思考平行四边形。记得中位线定理吗？观察点 $O$ 和点 $E$。
+                </div>
+                <div class="chat-msg border border-white/10">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs text-gray-500">我的提问 · 语音</span>
+                        <span class="text-xs text-gray-500">10:35 AM</span>
+                    </div>
+                    <div class="audio-wave">
+                        <div class="wave-bar" style="animation-delay: 0.1s"></div>
+                        <div class="wave-bar" style="animation-delay: 0.3s"></div>
+                        <div class="wave-bar" style="animation-delay: 0.2s"></div>
+                        <div class="wave-bar" style="animation-delay: 0.5s"></div>
+                        <div class="wave-bar" style="animation-delay: 0.4s"></div>
+                    </div>
+                </div>
+                <div class="chat-msg chat-ai">
+                    你的语音提问已收到。因为 $O$ 是 $AC$ 中点，$E$ 是 $BC$ 中点，所以 $OE$ 是 $\triangle ABC$ 的中位线。
+                </div>
+            </div>
+            <button onclick="exitPractice()" class="mt-6 text-sm text-gray-500 hover:text-white transition-colors underline">返回知识宇宙</button>
+        </div>
+    </div>
+        <script>
+
+        function showNode(name) {
+            document.getElementById('panel-title').innerText = name;
+            document.getElementById('node-panel').classList.add('active');
+        }
+
+        function startPractice() {
+            document.getElementById('practice-view').style.display = 'grid';
+            document.getElementById('map-view').style.opacity = '0';
+        }
+
+        function exitPractice() {
+            document.getElementById('practice-view').style.display = 'none';
+            document.getElementById('map-view').style.opacity = '1';
+            document.getElementById('node-panel').classList.remove('active');
+        }
+
+        function showHint() {
+            addChatMessage("AI 助教", "💡 这里的关键是点 O 和点 E 都是中点的特殊位置，试着连接 AB 看看？", true);
+        }
+
+        function showFullSolution() {
+            document.getElementById('solution-area').classList.remove('hidden');
+            document.getElementById('solution-area').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function askStep(stepNum) {
+            const steps = [
+                "",
+                "我不明白第一步是怎么判定 O 是中点的？",
+                "第二步的中位线定理公式能再推导一下吗？",
+                "第三步的勾股定理计算过程能写详细点吗？",
+                "最后一步是怎么算出的 3？"
+            ];
+            addChatMessage("我", steps[stepNum], false);
+            setTimeout(() => {
+                addChatMessage("AI 助教", `收到了关于第 ${stepNum} 步的问题。正在为你深度解析...`, true);
+            }, 800);
+        }
+
+        function addChatMessage(sender, text, isAi) {
+            const chatContainer = document.querySelector('#practice-view .flex-1');
+            const msg = document.createElement('div');
+            msg.className = `chat-msg ${isAi ? 'chat-ai' : 'border border-white/10'}`;
+            msg.innerHTML = `<div class="text-xs text-gray-500 mb-1">${sender}</div>${text}`;
+            chatContainer.appendChild(msg);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // 绘制星点连线
+        const canvas = document.getElementById('connections');
+        const ctx = canvas.getContext('2d');
+        function drawLines() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            ctx.strokeStyle = 'rgba(79, 209, 197, 0.2)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(window.innerWidth * 0.3, window.innerHeight * 0.4);
+            ctx.lineTo(window.innerWidth * 0.5, window.innerHeight * 0.5);
+            ctx.lineTo(window.innerWidth * 0.6, window.innerHeight * 0.3);
+            ctx.stroke();
+        }
+        window.onresize = drawLines;
+        drawLines();
+    </script>
+</body>
+</html>
