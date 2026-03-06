@@ -45,13 +45,41 @@ Agent 就像一个“图书管理员”，它知道题目在哪个目录下：
 
 ---
 
-## 4. 数据库设计 (元数据层)
-- **`questions_index`**: 记录 `question_id` -> `file_path` 的映射。
-- **`knowledge_tree`**: 存储由 AI 预先生成的学科知识图谱及其前置关系。
-- **`user_mastery`**: 存储用户在每个知识点上的当前 Level (A/B/C/D)。
+## 4. 数据库设计 (元数据与状态层)
+
+### 4.1 `questions_index` (题目元数据)
+数据库并不存储题目全文，仅作为检索索引：
+- **`id`**: 唯一标识。
+- **`paper_id`**: 对应原始试卷名称。
+- **`item_number`**: 对应试卷中的原始题号（如：第 15 题）。
+- **`difficulty`**: A/B/C/D 级别。
+- **`knowledge_point`**: 关联知识点。
+- **`file_path`**: 物理 Markdown 文件的存储路径（格式：`./repo/math/8down/geometry/PAPER_001_15.md`）。
+
+### 4.2 `user_learning_session` (断点续学状态)
+记录用户退出时的“现场”：
+- **`user_id`**: 用户标识。
+- **`node_id`**: 当前知识点。
+- **`task_queue`**: JSON 数组，记录 3 道初始真题的 ID 及其完成状态。
+- **`current_step`**: 当前执行到的队列索引（或变式题 ID）。
+- **`chat_context_id`**: 关联的 AI 对话历史 ID，用于恢复讨论现场。
 
 ---
 
-## 5. 局域网部署与性能
-- **存储**: 音视频与 Markdown 题目全量存储在内网服务器硬盘。
-- **检索**: 哪怕有数万道题，`ripgrep` 在文件系统上的搜索速度也远超传统的数据库模糊查询。
+## 5. 试卷解析输出规范 (The Output Format)
+解析后的 Markdown 文件遵循以下结构，以便于 Agent 使用 `sed` 或 `grep` 进行工具化提取：
+```markdown
+---
+paper: "2023年北京市中考数学真题"
+item: 15
+difficulty: D
+knowledge: ["平行四边形性质", "全等三角形"]
+---
+# 题干
+如图所示，在平行四边形 ABCD 中...
+# 答案
+A
+# 详解
+1. 第一步：根据平行四边形对边平行...
+2. 第二步：...
+```

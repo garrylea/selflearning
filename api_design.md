@@ -127,7 +127,66 @@
 
 ---
 
-## 6. 状态码与异常处理
+## 7. Agent 专用工具定义 (The Agent Toolbox - Shell-backed Functions)
+
+本章定义了客户端 Agent 在与大模型交互时可调用的“原子化工具”。这些工具通过映射到特定的 Shell 命令来实现对本地知识库和用户数据的操作。
+
+### 7.1 `list_knowledge_tree` (目录探测)
+- **底层命令**: `find [base_path] -maxdepth 2 -type d`
+- **用途**: 让 Agent 了解当前的科目、年级和知识点层级结构。
+- **参数 (JSON Schema)**:
+  ```json
+  {
+    "path": { "type": "string", "description": "相对路径，如 './repo/math'" }
+  }
+  ```
+
+### 7.2 `search_questions` (题目检索)
+- **底层命令**: `rg -l "[pattern]" [path]`
+- **用途**: 在 Markdown 库中快速查找包含特定知识点或元数据的文件名。
+- **参数 (JSON Schema)**:
+  ```json
+  {
+    "query": { "type": "string", "description": "搜索词，如 'difficulty: A'" },
+    "topic_path": { "type": "string", "description": "搜索范围，如 './repo/math/geometry'" }
+  }
+  ```
+- **优势**: 使用 `-l` 仅返回文件名列表，极大节省 Context Window。
+
+### 7.3 `read_question` (读取题目全文)
+- **底层命令**: `cat [file_path]`
+- **用途**: 当 Agent 锁定某个题目后，读取其 Markdown 全文。
+- **参数 (JSON Schema)**:
+  ```json
+  {
+    "file_path": { "type": "string", "description": "文件的完整路径" }
+  }
+  ```
+
+### 7.4 `peek_metadata` (快速提取元数据)
+- **底层命令**: `sed -n '1,/---/p' [file_path]`
+- **用途**: **Token 优化**。仅读取 Markdown 顶部的 YAML Front-matter，不读取正文。
+- **参数 (JSON Schema)**:
+  ```json
+  {
+    "file_path": { "type": "string", "description": "文件的完整路径" }
+  }
+  ```
+
+### 7.5 `query_user_log` (用户行为检索)
+- **底层命令**: `grep "[user_id]" ./data/mastery_log.jsonl`
+- **用途**: 在本地 JSONL 日志中检索用户的做题历史。
+- **参数 (JSON Schema)**:
+  ```json
+  {
+    "user_id": { "type": "string", "description": "用户的唯一标识符" },
+    "limit": { "type": "number", "description": "返回的最近记录条数" }
+  }
+  ```
+
+---
+
+## 8. 状态码与异常处理
 | Code | 描述 |
 | :--- | :--- |
 | 200 | 成功 |
